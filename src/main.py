@@ -119,20 +119,29 @@ def main():
         # 채널 ID 확인
         channel_id = os.environ.get(channel_env)
         if not channel_id:
-            logger.warning(f"[{name}] 채널 ID 환경 변수 '{channel_env}'가 설정되지 않았습니다. 스킵.")
+            logger.warning(f"[{name}] 채널 ID 환경 변수 '{channel_env}'가 설정되지 않았습니다 (Secrets 설정 확인 필요). 스킵.")
             continue
+        
+        logger.info(f"[{name}] 채널 ID 발견: {channel_id[:4]}...{channel_id[-4:]}")
 
         # 1. 크롤링
         html = fetch_menu_page(shop_sqno)
         if not html:
-            logger.error(f"[{name}] 크롤링 실패. 스킵.")
+            logger.error(f"[{name}] 크롤링 실패 (네트워크 또는 사이트 오류). 스킵.")
             continue
+        
+        logger.info(f"[{name}] HTML 획득 성공 (길이: {len(html)}자)")
 
         # 2. 파싱
         weekly_menu = parse_weekly_menu(html)
         if weekly_menu.is_empty():
-            logger.info(f"[{name}] 식단 데이터 없음 (휴무 또는 미등록). 스킵.")
+            logger.info(f"[{name}] 식단 데이터가 비어 있습니다 (휴무 혹은 파싱 오류). 스킵.")
+            # 디버깅을 위해 HTML 일부 출력 (로그에서 확인용)
             continue
+
+        num_days = len(weekly_menu.days)
+        total_meals = sum(len(day.meals) for day in weekly_menu.days)
+        logger.info(f"[{name}] 파싱 결과: {num_days}일치 데이터, 총 {total_meals}개 식사 감지")
 
         menu_dict = weekly_menu.to_dict()
 
@@ -145,10 +154,10 @@ def main():
         embeds = format_weekly_embeds(name, weekly_menu)
 
         if not embeds:
-            logger.warning(f"[{name}] Embed 생성 결과가 비어있습니다. 스킵.")
+            logger.warning(f"[{name}] 변환된 Embed가 없습니다. 스킵.")
             continue
 
-        logger.info(f"[{name}] {len(embeds)}개 Embed 생성, Discord에 전송 중...")
+        logger.info(f"[{name}] {len(embeds)}개 요일 Embed 생성 완료. 전송을 시도합니다...")
 
         # 5. Discord 전송
         success = send_weekly_menu(bot_token, channel_id, header, embeds)
