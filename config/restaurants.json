@@ -1,0 +1,38 @@
+[
+  {
+    "name": "카페테리아 첨성",
+    "shop_sqno": 37,
+    "channel_env": "CHANNEL_CAFETERIA",
+    "emoji": "🍚"
+  },
+  {
+    "name": "정보센터식당",
+    "shop_sqno": 35,
+    "channel_env": "CHANNEL_INFO_CENTER",
+    "emoji": "🍱"
+  },
+  {
+    "name": "복지관 교직원식당",
+    "shop_sqno": 36,
+    "channel_env": "CHANNEL_WELFARE",
+    "emoji": "🍽️"
+  },
+  {
+    "name": "GP감꽃식당",
+    "shop_sqno": 46,
+    "channel_env": "CHANNEL_GAMKKOT",
+    "emoji": "🌸"
+  },
+  {
+    "name": "공학관교직원식당",
+    "shop_sqno": 85,
+    "channel_env": "CHANNEL_ENG_STAFF",
+    "emoji": "⚙️"
+  },
+  {
+    "name": "공학관학생식당",
+    "shop_sqno": 86,
+    "channel_env": "CHANNEL_ENG_STUDENT",
+    "emoji": "🔧"
+  }
+]
