@@ -12,6 +12,13 @@ on:
     - cron: '0 21,0,3,6,9 * * *'
   workflow_dispatch:  # 수동 실행 가능
 
+# last_menus.json 상태 파일을 커밋/푸시하기 위한 쓰기 권한
+permissions:
+  contents: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true  # Node.js 20 deprecation 경고 제거
+
 jobs:
   check-menu:
     runs-on: ubuntu-latest
