@@ -136,7 +136,12 @@ def main():
         weekly_menu = parse_weekly_menu(html)
         if weekly_menu.is_empty():
             logger.info(f"[{name}] 식단 데이터가 비어 있습니다 (휴무 혹은 파싱 오류). 스킵.")
-            # 디버깅을 위해 HTML 일부 출력 (로그에서 확인용)
+            # 어떤 페이지가 불러와졌는지 확인하기 위한 디버깅 출력
+            logger.warning("===== 원격 서버 접근 HTML 디버그 =====")
+            # 페이지에서 주요 콘텐츠 부분(또는 전체의 일부)을 출력
+            debug_html = html.replace('\n', '')[:1000]
+            logger.warning(debug_html)
+            logger.warning("======================================")
             continue
 
         num_days = len(weekly_menu.days)
