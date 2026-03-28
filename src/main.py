@@ -17,11 +17,15 @@ import sys
 import logging
 import time
 from pathlib import Path
+from dotenv import load_dotenv
 
 from src.scraper import fetch_menu_page
 from src.parser import parse_weekly_menu
 from src.formatter import format_header_message, format_weekly_embeds
 from src.discord_sender import send_weekly_menu
+
+# 로컬 .env 파일 불러오기 (토큰 및 채널 ID 자동 인식)
+load_dotenv()
 
 # 로깅 설정
 logging.basicConfig(
