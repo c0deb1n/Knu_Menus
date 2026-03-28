@@ -104,66 +104,59 @@ class WeeklyMenu:
 def parse_weekly_menu(html: str) -> WeeklyMenu:
     """
     생협 식단 HTML을 파싱하여 WeeklyMenu 객체를 반환합니다.
-
-    Args:
-        html: 생협 식단 페이지의 전체 HTML
-
-    Returns:
-        WeeklyMenu 객체
     """
     soup = BeautifulSoup(html, "html.parser")
     weekly_menu = WeeklyMenu()
+
+    # 전체 페이지에서 헤더(요일/날짜)를 먼저 찾습니다 (첫 번째 tstyle_me 테이블에 존재)
+    global_headers = []
+    for table in soup.find_all("table", class_="tstyle_me"):
+        th_tags = table.find_all("th")
+        if th_tags:
+            for th in th_tags:
+                text = th.get_text(separator=" ", strip=True)
+                match = re.search(r"([월화수목금토일])\s*\(\s*(\d{2}/\d{2})\s*\)", text)
+                if match:
+                    global_headers.append({
+                        "day_name": match.group(1),
+                        "date": match.group(2),
+                    })
+            if global_headers:
+                break  # 헤더를 찾으면 종료
+
+    if not global_headers:
+        logger.warning("식단 페이지에서 요일/날짜 헤더를 찾을 수 없습니다.")
+        return weekly_menu
 
     # 식사 시간대별 테이블 블록 찾기 (div.week_table)
     week_tables = soup.find_all("div", class_="week_table")
 
     if not week_tables:
-        # week_table이 없으면 직접 테이블 찾기 시도
+        # week_table이 없으면 헤더가 아닌 일반 tstyle_me 파싱 시도
         tables = soup.find_all("table", class_="tstyle_me")
-        if not tables:
-            logger.warning("식단 테이블을 찾을 수 없습니다.")
-            return weekly_menu
-        # 테이블이 직접 있는 경우 처리
         for table in tables:
-            _parse_meal_table(table, None, weekly_menu)
+            # 헤더만 있는 테이블은 제외 (td가 있는 테이블만)
+            if table.find("td"):
+                _parse_meal_table(table, None, global_headers, weekly_menu)
         return weekly_menu
 
     for block in week_tables:
-        # 식사 시간대 타이틀 (p.title)
         title_elem = block.find("p", class_="title")
         meal_category_name = title_elem.get_text(strip=True) if title_elem else ""
 
-        # 테이블 찾기
         table = block.find("table", class_="tstyle_me")
         if not table:
             continue
 
-        _parse_meal_table(table, meal_category_name, weekly_menu)
+        _parse_meal_table(table, meal_category_name, global_headers, weekly_menu)
 
     return weekly_menu
 
 
-def _parse_meal_table(table: Tag, meal_category_name: str | None, weekly_menu: WeeklyMenu):
+def _parse_meal_table(table: Tag, meal_category_name: str | None, headers: list[dict], weekly_menu: WeeklyMenu):
     """
     하나의 식사 시간대 테이블을 파싱합니다.
     """
-    # 헤더에서 요일/날짜 정보 추출
-    thead = table.find("thead")
-    if not thead:
-        return
-
-    headers = []
-    th_tags = thead.find_all("th")
-    for th in th_tags:
-        text = th.get_text(strip=True)
-        # "월(03/23)" 형태에서 요일과 날짜 추출
-        match = re.match(r"([월화수목금토일])\s*\((\d{2}/\d{2})\)", text)
-        if match:
-            headers.append({
-                "day_name": match.group(1),
-                "date": match.group(2),
-            })
-
     if not headers:
         return
 

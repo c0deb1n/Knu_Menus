@@ -2,6 +2,7 @@
 KNU 생활협동조합 식단 페이지 크롤러
 """
 
+from __future__ import annotations
 import requests
 import time
 import logging
