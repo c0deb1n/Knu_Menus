@@ -3,6 +3,7 @@ Discord Bot REST API를 사용하여 메시지를 전송합니다.
 Webhook이 아닌 Bot 토큰 방식으로, 1개 토큰으로 여러 채널에 전송 가능합니다.
 """
 
+from __future__ import annotations
 import requests
 import logging
 import time
@@ -74,14 +75,14 @@ def send_message(
         return False
 
 
-def send_weekly_menu(
+def send_daily_menu(
     bot_token: str,
     channel_id: str,
     header_content: str,
     embeds: list[dict],
 ) -> bool:
     """
-    주간 식단 메시지를 전송합니다.
+    일간 식단 메시지를 전송합니다.
     Discord 한 메시지에 최대 10개 Embed를 넣을 수 있으므로,
     필요시 여러 메시지로 분할합니다.
 

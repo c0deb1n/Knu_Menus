@@ -1,33 +1,31 @@
 """
-KNU 학식 디스코드 알림 서비스 — 메인 실행 파일
+KNU 학식 디스코드 알림 서비스 — 일간 전송 봇 (스케줄러 버전)
 
 전체 흐름:
-1. 식당 설정 로드
-2. 각 식당 페이지 크롤링
-3. HTML 파싱 → 구조화된 데이터
-4. 이전 데이터와 비교 (변경 감지)
-5. 변경된 식당만 Discord 채널에 전송
-6. 상태 파일 업데이트
+1. 평일(월~금) 매일 오전 7시에 실행
+2. 식당 설정 로드 및 크롤링
+3. 주간 식단 중 "오늘 요일"에 해당하는 식단만 추출
+4. Discord 채널에 전송
 """
 
-import json
-import hashlib
 import os
 import sys
 import logging
 import time
+from datetime import datetime
+import pytz
+import schedule
 from pathlib import Path
 from dotenv import load_dotenv
 
 from src.scraper import fetch_menu_page
 from src.parser import parse_weekly_menu
-from src.formatter import format_header_message, format_weekly_embeds
-from src.discord_sender import send_weekly_menu
+from src.formatter import format_daily_header_message, _format_day_embed
+from src.discord_sender import send_daily_menu
+import json
 
-# 로컬 .env 파일 불러오기 (토큰 및 채널 ID 자동 인식)
 load_dotenv()
 
-# 로깅 설정
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -35,168 +33,115 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# 경로 설정
 BASE_DIR = Path(__file__).resolve().parent.parent
 CONFIG_PATH = BASE_DIR / "config" / "restaurants.json"
-STATE_PATH = BASE_DIR / "data" / "last_menus.json"
-
 
 def load_config() -> list[dict]:
-    """식당 설정을 로드합니다."""
     with open(CONFIG_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
 
-
-def load_state() -> dict:
-    """이전 전송 상태를 로드합니다."""
-    if STATE_PATH.exists():
-        with open(STATE_PATH, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return {}
-
-
-def save_state(state: dict):
-    """전송 상태를 저장합니다."""
-    STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with open(STATE_PATH, "w", encoding="utf-8") as f:
-        json.dump(state, f, ensure_ascii=False, indent=2)
-
-
-def compute_content_hash(menu_dict: dict) -> str:
-    """메뉴 데이터의 해시를 계산합니다."""
-    content = json.dumps(menu_dict, sort_keys=True, ensure_ascii=False)
-    return hashlib.sha256(content.encode("utf-8")).hexdigest()[:16]
-
-
-def has_menu_changed(restaurant_id: str, menu_dict: dict, state: dict) -> bool:
-    """
-    식단이 변경되었는지 확인합니다.
-
-    변경 기준:
-    1. 이전에 전송한 기록이 없는 경우
-    2. 내용의 해시가 다른 경우
-    """
-    old_state = state.get(restaurant_id, {})
-    old_hash = old_state.get("content_hash", "")
-    new_hash = compute_content_hash(menu_dict)
-
-    if not old_hash:
-        logger.info(f"[{restaurant_id}] 첫 번째 실행 — 전송 필요")
-        return True
-
-    if new_hash != old_hash:
-        logger.info(f"[{restaurant_id}] 식단 변경 감지! (이전: {old_hash}, 현재: {new_hash})")
-        return True
-
-    logger.info(f"[{restaurant_id}] 변경 없음 — 스킵")
-    return False
-
-
-def main():
-    """메인 실행 함수"""
+def job():
+    """매일 지정된 시간에 실행될 식단 전송 작업"""
     logger.info("=" * 50)
-    logger.info("KNU 학식 디스코드 알림 서비스 시작")
-    logger.info("=" * 50)
+    logger.info("오늘의 식단 알림 전송 시작")
+    
+    # 한국 시간 기준으로 오늘 요일 구하기
+    kst = pytz.timezone('Asia/Seoul')
+    now = datetime.now(kst)
+    weekday_idx = now.weekday()  # 0: 월, 1: 화, ..., 4: 금, 5: 토, 6: 일
+    
+    if weekday_idx > 4:
+        logger.info("주말(토/일)이므로 식단 알림을 전송하지 않습니다.")
+        return
 
-    # 환경 변수에서 봇 토큰 읽기
+    day_names = ["월", "화", "수", "목", "금", "토", "일"]
+    today_name = day_names[weekday_idx]
+    
+    logger.info(f"오늘은 {today_name}요일 입니다.")
+
     bot_token = os.environ.get("DISCORD_BOT_TOKEN")
     if not bot_token:
         logger.error("DISCORD_BOT_TOKEN 환경 변수가 설정되지 않았습니다.")
-        sys.exit(1)
+        return
 
-    # 설정 로드
     restaurants = load_config()
-    state = load_state()
-    updated = False
-
-    logger.info(f"총 {len(restaurants)}개 식당 확인 예정")
-
+    
     for restaurant in restaurants:
         name = restaurant["name"]
         shop_sqno = restaurant["shop_sqno"]
         channel_env = restaurant["channel_env"]
         emoji = restaurant["emoji"]
-        restaurant_id = str(shop_sqno)
 
-        logger.info(f"\n--- {emoji} {name} (shop_sqno={shop_sqno}) ---")
+        logger.info(f"\n--- {emoji} {name} ---")
 
-        # 채널 ID 확인
         channel_id = os.environ.get(channel_env)
         if not channel_id:
-            logger.warning(f"[{name}] 채널 ID 환경 변수 '{channel_env}'가 설정되지 않았습니다 (Secrets 설정 확인 필요). 스킵.")
+            logger.warning(f"[{name}] 채널 ID 누락. 스킵.")
             continue
-        
-        logger.info(f"[{name}] 채널 ID 발견: {channel_id[:4]}...{channel_id[-4:]}")
 
-        # 1. 크롤링
         html = fetch_menu_page(shop_sqno)
         if not html:
-            logger.error(f"[{name}] 크롤링 실패 (네트워크 또는 사이트 오류). 스킵.")
+            logger.error(f"[{name}] 크롤링 실패. 스킵.")
             continue
-        
-        logger.info(f"[{name}] HTML 획득 성공 (길이: {len(html)}자)")
 
-        # 2. 파싱
         weekly_menu = parse_weekly_menu(html)
         if weekly_menu.is_empty():
-            logger.info(f"[{name}] 식단 데이터가 비어 있습니다 (휴무 혹은 파싱 오류). 스킵.")
-            # 어떤 페이지가 불러와졌는지 확인하기 위한 디버깅 출력
-            logger.warning("===== 원격 서버 접근 HTML 디버그 =====")
-            # 페이지에서 주요 콘텐츠 부분(또는 전체의 일부)을 출력
-            debug_html = html.replace('\n', '')[:1000]
-            logger.warning(debug_html)
-            logger.warning("======================================")
+            logger.info(f"[{name}] 금주 식단 데이터가 없습니다.")
             continue
 
-        num_days = len(weekly_menu.days)
-        total_meals = sum(len(day.meals) for day in weekly_menu.days)
-        logger.info(f"[{name}] 파싱 결과: {num_days}일치 데이터, 총 {total_meals}개 식사 감지")
+        # 오늘 요일에 해당하는 식단 찾기
+        today_menu = None
+        for day in weekly_menu.days:
+            if day.day_name == today_name:
+                today_menu = day
+                break
 
-        menu_dict = weekly_menu.to_dict()
-
-        # 3. 변경 감지
-        if not has_menu_changed(restaurant_id, menu_dict, state):
+        if not today_menu or not today_menu.meals:
+            logger.info(f"[{name}] 오늘({today_name}요일) 식단이 없습니다. (휴무 등)")
             continue
 
-        # 4. Discord Embed 포맷팅
-        header = format_header_message(name, emoji, weekly_menu)
-        embeds = format_weekly_embeds(name, weekly_menu)
+        # Embed 포맷팅 (오늘 하루치만)
+        header = format_daily_header_message(name, emoji, today_menu)
+        embed = _format_day_embed(today_menu)
 
-        if not embeds:
-            logger.warning(f"[{name}] 변환된 Embed가 없습니다. 스킵.")
+        if not embed:
+            logger.warning(f"[{name}] Embed 생성 실패.")
             continue
 
-        logger.info(f"[{name}] {len(embeds)}개 요일 Embed 생성 완료. 전송을 시도합니다...")
-
-        # 5. Discord 전송
-        success = send_weekly_menu(bot_token, channel_id, header, embeds)
+        # 전송 (기존 함수 재사용하되 리스트에 1개만 넣음)
+        success = send_daily_menu(bot_token, channel_id, header, [embed])
 
         if success:
-            # 6. 상태 업데이트
-            state[restaurant_id] = {
-                "name": name,
-                "content_hash": compute_content_hash(menu_dict),
-                "menu_data": menu_dict,
-            }
-            updated = True
             logger.info(f"[{name}] ✅ 전송 완료!")
         else:
             logger.error(f"[{name}] ❌ 전송 실패!")
 
-        # Rate limit 방지를 위해 식당 간 1초 대기
         time.sleep(1)
 
-    # 변경사항이 있으면 상태 파일 저장
-    if updated:
-        save_state(state)
-        logger.info("\n상태 파일 업데이트 완료")
-    else:
-        logger.info("\n변경된 식단 없음 — 상태 파일 유지")
-
-    logger.info("=" * 50)
-    logger.info("실행 완료")
+    logger.info("오늘의 식단 전송 작업 완료")
     logger.info("=" * 50)
 
+def main():
+    logger.info("KNU 학식 일간 알림 봇 (스케줄러) 켜짐")
+    
+    # 1. 월~금 매일 아침 7시에 실행하도록 스케줄 등록 (명시적 KST 타임존 지정)
+    KST = pytz.timezone('Asia/Seoul')
+    schedule.every().monday.at("07:00", KST).do(job)
+    schedule.every().tuesday.at("07:00", KST).do(job)
+    schedule.every().wednesday.at("07:00", KST).do(job)
+    schedule.every().thursday.at("07:00", KST).do(job)
+    schedule.every().friday.at("07:00", KST).do(job)
+    
+    logger.info("⏰ 스케줄 등록 완료: 매주 평일 아침 7시")
+
+    # (테스트용) 스크립트를 켤 때 일단 1번 즉시 실행해보고 싶다면 아래 주석을 푸세요
+    # logger.info("초기 테스트 실행...")
+    # job()
+
+    # 무한 대기 루프
+    while True:
+        schedule.run_pending()
+        time.sleep(60)  # 1분마다 스케줄 확인
 
 if __name__ == "__main__":
     main()

@@ -1,0 +1,19 @@
+# Git
+.git
+.gitignore
+
+# Python
+.venv
+__pycache__
+*.py[cod]
+*$py.class
+
+# Secrets (보안 유지)
+.env
+
+# OS Files
+.DS_Store
+
+# Dev Files (컨테이너 실행에 불필요)
+docker-compose.yml
+README.md

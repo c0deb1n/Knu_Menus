@@ -1,0 +1,56 @@
+name: Deploy to Cloud Server (Docker)
+
+on:
+  push:
+    branches:
+      - main  # master 브랜치 제거 (배포 대상 통일)
+
+jobs:
+  # 배포 전 최소 실행 가능성 검증 (실패 시 배포 안 됨)
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Syntax Check
+        run: python -m py_compile src/main.py src/parser.py src/formatter.py src/discord_sender.py src/scraper.py
+      - name: Import Check
+        run: python -c "import src.main, src.parser, src.formatter, src.discord_sender, src.scraper"
+
+  deploy:
+    needs: verify  # verify 잡이 성공해야만 deploy 실행
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH Server Connection & Deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            set -e # 명령어 중 하나라도 실패하면 즉시 중단
+            
+            # 1. 프로젝트 폴더가 없으면 git clone, 있으면 해당 폴더로 이동 후 최신 코드 다운(pull)
+            if [ ! -d "Knu_Menus" ]; then
+              git clone https://github.com/${{ github.repository }}.git Knu_Menus
+            fi
+            cd Knu_Menus
+            git pull --ff-only origin main
+            
+            # 2. GitHub Secrets에 저장된 변수들을 모아서 서버에 .env 파일 동적 생성
+            echo "DISCORD_BOT_TOKEN=${{ secrets.DISCORD_BOT_TOKEN }}" > .env
+            echo "CHANNEL_CAFETERIA=${{ secrets.CHANNEL_CAFETERIA }}" >> .env
+            echo "CHANNEL_INFO_CENTER=${{ secrets.CHANNEL_INFO_CENTER }}" >> .env
+            echo "CHANNEL_WELFARE=${{ secrets.CHANNEL_WELFARE }}" >> .env
+            echo "CHANNEL_GAMKKOT=${{ secrets.CHANNEL_GAMKKOT }}" >> .env
+            echo "CHANNEL_ENG_STAFF=${{ secrets.CHANNEL_ENG_STAFF }}" >> .env
+            echo "CHANNEL_ENG_STUDENT=${{ secrets.CHANNEL_ENG_STUDENT }}" >> .env
+            
+            # 3. 최신 코드로 빌드 후 재기동
+            # down을 먼저 하지 않아 빌드 실패에는 더 강하지만, 컨테이너 재생성 자체가 실패하면 중단될 수 있음
+            sudo docker compose up --build -d

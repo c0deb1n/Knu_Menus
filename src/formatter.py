@@ -1,8 +1,8 @@
 """
 파싱된 메뉴 데이터를 Discord Embed 형식으로 변환합니다.
 """
-
 from __future__ import annotations
+
 from src.parser import WeeklyMenu, DayMenu, MealCategory, MealCorner
 
 # 요일별 Embed 색상
@@ -35,42 +35,14 @@ MEAL_EMOJIS = {
 }
 
 
-def format_header_message(restaurant_name: str, restaurant_emoji: str, weekly_menu: WeeklyMenu) -> str:
+def format_daily_header_message(restaurant_name: str, restaurant_emoji: str, day: DayMenu) -> str:
     """
-    주간 식단 헤더 메시지를 생성합니다.
+    일간 식단 헤더 메시지를 생성합니다.
     """
-    if not weekly_menu.days:
-        return f"{restaurant_emoji} **{restaurant_name}** 주간 식단표"
-
-    first_day = weekly_menu.days[0]
-    last_day = weekly_menu.days[-1]
-
     return (
-        f"{restaurant_emoji} **{restaurant_name}** 주간 식단표\n"
-        f"📅 {first_day.date}({first_day.day_name}) ~ {last_day.date}({last_day.day_name})"
+        f"{restaurant_emoji} **{restaurant_name}** 오늘의 식단표\n"
+        f"📅 {day.date}({day.day_name})"
     )
-
-
-def format_weekly_embeds(restaurant_name: str, weekly_menu: WeeklyMenu) -> list[dict]:
-    """
-    주간 식단을 Discord Embed 리스트로 변환합니다.
-    요일당 1개의 Embed를 생성합니다.
-
-    Args:
-        restaurant_name: 식당 이름
-        weekly_menu: 파싱된 주간 메뉴
-
-    Returns:
-        Discord Embed JSON 딕셔너리 리스트 (최대 7개)
-    """
-    embeds = []
-
-    for day in weekly_menu.days:
-        embed = _format_day_embed(day)
-        if embed:
-            embeds.append(embed)
-
-    return embeds
 
 
 def _format_day_embed(day: DayMenu) -> dict | None:

@@ -1,0 +1,10 @@
+version: '3.8'
+
+services:
+  knu-bot:
+    build: .
+    image: knu_menus_bot:latest
+    container_name: knu_menus_bot_daemon
+    restart: always
+    env_file:
+      - .env
