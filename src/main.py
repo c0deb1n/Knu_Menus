@@ -42,6 +42,13 @@ def load_config() -> list[dict]:
 
 def job():
     """매일 지정된 시간에 실행될 식단 전송 작업"""
+    try:
+        _execute_job()
+    except Exception as e:
+        logger.exception(f"식단 전송 작업 중 예기치 않은 오류 발생: {e}")
+
+def _execute_job():
+    """실제 식단 전송 로직"""
     logger.info("=" * 50)
     logger.info("오늘의 식단 알림 전송 시작")
     

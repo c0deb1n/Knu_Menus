@@ -43,13 +43,17 @@ jobs:
             git pull --ff-only origin main
             
             # 2. GitHub Secrets에 저장된 변수들을 모아서 서버에 .env 파일 동적 생성
-            echo "DISCORD_BOT_TOKEN=${{ secrets.DISCORD_BOT_TOKEN }}" > .env
-            echo "CHANNEL_CAFETERIA=${{ secrets.CHANNEL_CAFETERIA }}" >> .env
-            echo "CHANNEL_INFO_CENTER=${{ secrets.CHANNEL_INFO_CENTER }}" >> .env
-            echo "CHANNEL_WELFARE=${{ secrets.CHANNEL_WELFARE }}" >> .env
-            echo "CHANNEL_GAMKKOT=${{ secrets.CHANNEL_GAMKKOT }}" >> .env
-            echo "CHANNEL_ENG_STAFF=${{ secrets.CHANNEL_ENG_STAFF }}" >> .env
-            echo "CHANNEL_ENG_STUDENT=${{ secrets.CHANNEL_ENG_STUDENT }}" >> .env
+            # 2. GitHub Secrets에 저장된 변수들을 모아서 서버에 .env 파일 동적 생성
+            touch .env && chmod 600 .env
+            cat > .env << 'ENVEOF'
+            DISCORD_BOT_TOKEN=${{ secrets.DISCORD_BOT_TOKEN }}
+            CHANNEL_CAFETERIA=${{ secrets.CHANNEL_CAFETERIA }}
+            CHANNEL_INFO_CENTER=${{ secrets.CHANNEL_INFO_CENTER }}
+            CHANNEL_WELFARE=${{ secrets.CHANNEL_WELFARE }}
+            CHANNEL_GAMKKOT=${{ secrets.CHANNEL_GAMKKOT }}
+            CHANNEL_ENG_STAFF=${{ secrets.CHANNEL_ENG_STAFF }}
+            CHANNEL_ENG_STUDENT=${{ secrets.CHANNEL_ENG_STUDENT }}
+            ENVEOF
             
             # 3. 최신 코드로 빌드 후 재기동
             # down을 먼저 하지 않아 빌드 실패에는 더 강하지만, 컨테이너 재생성 자체가 실패하면 중단될 수 있음
