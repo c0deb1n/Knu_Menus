@@ -22,11 +22,11 @@
 
 ```mermaid
 graph TD
-    A[🐳 Docker Container 24/7] --> B[⏰ Python Schedule (07:00 KST)]
-    B --> C[🌐 생협 사이트 크롤링]
-    C --> D{🔍 오늘 요일 메뉴 추출}
-    D -->|주말이거나 메뉴 없음| E[⏹️ 무시 및 대기]
-    D -->|오늘 메뉴 발견!| F[📤 Discord Bot API 전송]
+    A["🐳 Docker Container 24/7"] --> B["⏰ Python Schedule (07:00 KST)"]
+    B --> C["🌐 생협 사이트 크롤링"]
+    C --> D{"🔍 오늘 요일 메뉴 추출"}
+    D -->|"주말이거나 메뉴 없음"| E["⏹️ 무시 및 대기"]
+    D -->|"오늘 메뉴 발견!"| F["📤 Discord Bot API 전송"]
     F --> A
 ```
 
