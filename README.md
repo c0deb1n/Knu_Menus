@@ -1,6 +1,6 @@
 # 🍽️ KNU 학식 디스코드 알림 서비스 (knu_menus)
 
-경북대학교 생활협동조합(생협) 사이트의 식단 정보를 자동으로 크롤링하여, 매일 아침 디스코드 채널로 예쁜 '오늘의 식단표'를 전송해주는 봇 서비스입니다.
+경북대학교 생활협동조합(생협) 사이트의 식단 정보를 자동으로 크롤링하여, 매일 아침 디스코드 채널로 '오늘의 식단표'를 전송해주는 봇 서비스입니다.
 
 ![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
