@@ -131,15 +131,15 @@ def _execute_job():
 def main():
     logger.info("KNU 학식 일간 알림 봇 (스케줄러) 켜짐")
     
-    # 1. 월~금 매일 아침 7시에 실행하도록 스케줄 등록 (명시적 KST 타임존 지정)
+    # 1. 월~금 매일 아침 6시에 실행하도록 스케줄 등록 (명시적 KST 타임존 지정)
     KST = pytz.timezone('Asia/Seoul')
-    schedule.every().monday.at("07:00", KST).do(job)
-    schedule.every().tuesday.at("07:00", KST).do(job)
-    schedule.every().wednesday.at("07:00", KST).do(job)
-    schedule.every().thursday.at("07:00", KST).do(job)
-    schedule.every().friday.at("07:00", KST).do(job)
+    schedule.every().monday.at("06:00", KST).do(job)
+    schedule.every().tuesday.at("06:00", KST).do(job)
+    schedule.every().wednesday.at("06:00", KST).do(job)
+    schedule.every().thursday.at("06:00", KST).do(job)
+    schedule.every().friday.at("06:00", KST).do(job)
     
-    logger.info("⏰ 스케줄 등록 완료: 매주 평일 아침 7시")
+    logger.info("⏰ 스케줄 등록 완료: 매주 평일 아침 6시")
 
     # (테스트용) 스크립트를 켤 때 일단 1번 즉시 실행해보고 싶다면 아래 주석을 푸세요
     # logger.info("초기 테스트 실행...")
